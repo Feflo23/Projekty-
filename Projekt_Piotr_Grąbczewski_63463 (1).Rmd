@@ -1,0 +1,479 @@
+
+
+---
+title: "Raport badający odejścia z pracy w firmie IBM"
+output:
+  html_document:
+    toc: true
+   
+---
+
+
+
+
+#1. Opis danych i hipotezy badawcze
+##1.1 Opis danych
+
+Dane pochodzą z https://www.kaggle.com/pavansubhasht/ibm-hr-analytics-attrition-dataset
+
+Dane są symulowanymi danymi opisującymi pracowników IBM. W kolumnach znajdują się kolejne cechy pracowników. Każdy wiersz oznacza pojedynczego pracownika.
+Część kolumn zostła usunięta ze zbioru danych ponieważ były nieistotne dla analizy.
+
+Kolumny BusinessTravel, Gender, JobRole, MaritalStatus, OverTime zostały potraktowane funkcją factor aby zmienić format ich danych z vektorowych na factory.
+
+Poniżej widać jakie kolumny zawiera zbiór po wstępnej obróbce:
+
+```{r echo=TRUE}
+
+rm(list=ls())
+d <- read.csv("C:/Users/Feflo/Documents/projekt_wizualizacja_i_prezentacja_danych/IBM_employee_data.csv", header = T, sep = ",")
+
+d <- d[,c("Attrition","BusinessTravel","DistanceFromHome","EnvironmentSatisfaction","Gender","JobInvolvement",
+          "JobRole","MaritalStatus","NumCompaniesWorked","OverTime","RelationshipSatisfaction","TotalWorkingYears",
+          "TrainingTimesLastYear","WorkLifeBalance","YearsAtCompany","YearsInCurrentRole","YearsSinceLastPromotion",
+          "YearsWithCurrManager")]
+
+cos <-sapply(d, is.factor)
+d$BusinessTravel <- factor(d$BusinessTravel) 
+d$Gender <- factor(d$Gender)
+d$JobRole <- factor(d$JobRole)
+d$MaritalStatus <- factor(d$MaritalStatus)
+d$OverTime <- factor(d$OverTime)
+colnames(d)
+```
+
+##1.2 Krótki opis kolumn
+
+
+"Attrition" - oznacza, czy dana odoba odeszła czy nie 
+
+"BusinessTravel" - Jak często dany pracownik podróżuje
+
+"DistanceFromHome" - Odległość pracy od domu
+
+"EnvironmentSatisfaction" - Zadowolenie ze środowiska pracy 1-4
+
+"Gender" - płeć 
+
+"JobInvolvement"  - Zaangażowanie w pracy 1-4
+
+"JobRole"- Zawód/ Rola pełniona w organizacji
+
+"MaritalStatus" - Stan cywilny 
+
+"NumCompaniesWorked" - Ilość firm, w której pracowała osoba  
+
+"OverTime" - Czy osoba brała nadgodziny        
+
+"RelationshipSatisfaction" - Zadowolenie z relacji
+
+"TotalWorkingYears" - Łącznie liczba lat przepracowanych
+
+"TrainingTimesLastYear"  - Liczba szkoleń w zeszłym roku
+
+"WorkLifeBalance" - Ocena połączenia pracy z życiem prywatnym 1-4    
+
+"YearsAtCompany" - Liczba lat spedzonych w firmie      
+
+"YearsInCurrentRole" - Liczba lat skędzonych na danym stanowisku  
+
+"YearsSinceLastPromotion" - Liczba lat od ostatniego awansu  
+
+"YearsWithCurrManager" - Liczba lat pracując pod jednym managerem
+
+##1.3 Hipotezy badawcze
+W raporcie chciałbym zbudować i wybrać model, który nadawałby się do opisania odejść pracowników z firmy. Taki model umożliwiłby przewidywanie odejść pracowników. Chciałbym też sprawdzić, które zmienne w największym stopniu wpływają na decyzję o odejściu pracownika.
+
+
+#2. Analiza eksploracyjna
+
+##2.1 Analiza zmiennych ciągłych (gęstości)
+Na początku wykonałem wykresy gęstości, zmiennych ciągłych w zależnosci od wartości zmiennej Attrition:
+```{r echo=TRUE, ,out.width = '\\maxwidth'}
+library(ggplot2)
+library(gridExtra)
+library(grid)
+a<-ggplot(data=d) 
+
+a1<-a+geom_density(aes(x=DistanceFromHome, fill= Attrition), alpha = 0.8) 
+a2<-a+geom_density(aes(x=NumCompaniesWorked, fill= Attrition), alpha = 0.8)
+a3<-a+geom_density(aes(x=TotalWorkingYears, fill= Attrition), alpha = 0.8)
+a4<-a+geom_density(aes(x=TrainingTimesLastYear, fill= Attrition), alpha = 0.8)
+a5<-a+geom_density(aes(x=YearsAtCompany, fill= Attrition), alpha = 0.8)
+a6<-a+geom_density(aes(x=YearsInCurrentRole, fill= Attrition), alpha = 0.8)
+a7<-a+geom_density(aes(x=YearsSinceLastPromotion, fill= Attrition), alpha = 0.8)
+a8<-a+geom_density(aes(x=YearsWithCurrManager, fill= Attrition), alpha = 0.8)
+
+grid.arrange(a1, a2, a3, a4, ncol =2, nrow = 2, top = textGrob("Gęstosci zmiennych ciągłych względem zmiennej Attrition",gp=gpar(fontsize=14,font=3)))
+grid.arrange(a5, a6, a7, a8, ncol =2, nrow = 2)
+```
+
+Dla zmiennej DistanceFromHome, wyraźnie widać, że im pracownik mieszka bliżej miejsca pracy tym jest mniej skłonny odejść.
+
+Wykres NumCompaniesWorked pokazuje, że odsetek ludzi odchodzących przeważa dopiero od 4 firm. Dla mneijszej liczby firm albo wykresy się pokrywają albo przeważa pomarańczowy, co oznacza, że im dla mniej firm człowiek pracował, tym jest mniej skłonny odejść.
+
+Wykres gęstości TotalWorkingDays wskazuje na zależność , że im mniej pracownik przepracował lat tym  jest bardziej skłonny odejść. Do około 10 lat przepracowanych, ludzie są bardziej gotowi odejść.
+
+TrainingTimesLastYear w tym przypadku tylko między 0 a 1 występuje przewaga gęstości pracowników odchodzących. Największa przewaga gęstości ludzi nieodchodzących jest dla 3 szkoleń w ciągu roku.
+
+YearsAtCOmpany podobnie jak dla dwóch opisanych wyżej jednak przewaga pracowników odchodzących kńczy się dla około 5 lat w firmie.Później przeważa tendencja do nie odchodzenia.
+
+Wykresy dla zmiennych YearsInCUrrentRole i YearsWithCurrManager są bardzo podobne i wykazują przewagę odejść do około 2.5 lat w obu przypadkach, dla większej ilości lat z tym smym managerem albo na danej pozycji przeważa tendencja do nieodchodzenia.
+
+W przypadku YearsSInceLastPromotion gęstość pracowników odchodzących przeważa tylko dla pierwszego roku od awansu oraz dla 7 roku od awansu. Dla reszty albo gęstości się pokrywają albo przeważa gęstość pracowników nieodchodzących.
+
+
+##2.2 Analiza zmiennych dyskretnych (częstości)
+
+W kolejnej części przedstawię wykresy częstości dla miennych dyskretnych w zależności od wartości zmiennej Attrition.
+(długi fragment kodu w pliku Rmd)
+
+```{r ,echo=FALSE, message=FALSE, ,out.width = '\\maxwidth'}
+
+library(dplyr)
+library(gridExtra)
+library(grid)
+d1<- d %>%  
+  count( Attrition, BusinessTravel) %>% 
+  group_by( BusinessTravel) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  ggplot(aes(x = BusinessTravel, y = freq, fill =  Attrition)) + 
+  geom_bar(stat="identity", position = 'dodge')+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  geom_text(aes(label=paste0(round(freq,2)*100,"%")), colour="black", size = 2.5, position=position_dodge(width=0.9), vjust=1.25)#, position = position_stack(vjust = 0.5))
+
+
+
+d2<- d %>%  
+  count( Attrition, EnvironmentSatisfaction) %>% 
+  group_by(EnvironmentSatisfaction) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  ggplot(aes(x = EnvironmentSatisfaction, y = freq, fill = Attrition)) + 
+  geom_bar(stat="identity", position = 'dodge')+
+  geom_text(aes(label=paste0(round(freq,2)*100,"%")), colour="black", size = 2.5, position=position_dodge(width=0.9), vjust=1.25)
+
+d3<- d %>%  
+  count( Attrition,Gender) %>% 
+  group_by(Gender) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  ggplot(aes(x = Gender, y = freq, fill = Attrition)) + 
+  geom_bar(stat="identity", position = 'dodge')+
+  geom_text(aes(label=paste0(round(freq,2)*100,"%")), colour="black", size = 2.5, position=position_dodge(width=0.9), vjust=1.25)
+
+d4<- d %>%  
+  count( Attrition, JobInvolvement) %>% 
+  group_by(JobInvolvement) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  ggplot(aes(x = JobInvolvement, y = freq, fill = Attrition)) + 
+  geom_bar(stat="identity", position = 'dodge')+
+  geom_text(aes(label=paste0(round(freq,2)*100,"%")), colour="black", size = 2.5, position=position_dodge(width=0.9), vjust=1.25)
+
+d5<- d %>%  
+  count( Attrition, JobRole) %>% 
+  group_by(JobRole) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  ggplot(aes(x = JobRole, y = freq, fill = Attrition)) + 
+  geom_bar(stat="identity", position = 'dodge')+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  geom_text(aes(label=paste0(round(freq,2)*100,"%")), colour="black", size = 2.5, position=position_dodge(width=0.9), vjust=1.25)
+
+d6<- d %>%  
+  count( Attrition, MaritalStatus) %>% 
+  group_by(MaritalStatus) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  ggplot(aes(x = MaritalStatus, y = freq, fill = Attrition)) + 
+  geom_bar(stat="identity", position = 'dodge')+
+  geom_text(aes(label=paste0(round(freq,2)*100,"%")), colour="black", size = 2.5, position=position_dodge(width=0.9), vjust=1.25)
+
+d7<- d %>%  
+  count( Attrition, OverTime) %>% 
+  group_by(OverTime) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  ggplot(aes(x = OverTime, y = freq, fill = Attrition)) + 
+  geom_bar(stat="identity", position = 'dodge')+
+  geom_text(aes(label=paste0(round(freq,2)*100,"%")), colour="black", size = 2.5, position=position_dodge(width=0.9), vjust=1.25)
+
+d8<- d %>%  
+  count( Attrition, RelationshipSatisfaction) %>% 
+  group_by(RelationshipSatisfaction) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  ggplot(aes(x = RelationshipSatisfaction, y = freq, fill = Attrition)) + 
+  geom_bar(stat="identity", position = 'dodge')+
+  geom_text(aes(label=paste0(round(freq,2)*100,"%")), colour="black", size = 2.5, position=position_dodge(width=0.9), vjust=1.25)
+
+d9<- d %>%  
+  count( Attrition, WorkLifeBalance) %>% 
+  group_by(WorkLifeBalance) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  ggplot(aes(x = WorkLifeBalance, y = freq, fill = Attrition)) + 
+  geom_bar(stat="identity", position = 'dodge')+
+  geom_text(aes(label=paste0(round(freq,2)*100,"%")), colour="black", size = 2.5, position=position_dodge(width=0.9), vjust=1.25)
+
+
+grid.arrange(d1, d2, d3, d4, ncol =2, nrow = 2, top = textGrob("Częstości zmiennych dyskretnych względem zmiennej Attrition",gp=gpar(fontsize=14,font=3)))
+grid.arrange(d9, d6, d7, d8, ncol =2, nrow = 2)
+d5
+
+
+
+```
+
+Analizując wykresy częstości dla zmienych dyskretnych można wyciagnąć wiele ciekawych wniosków na temat jak wartości zmiennych wpływają na zmienną objaśnianą.
+
+Na pierwszym wykresie widać, że największy udział odchodzących osób ma grupa osób, która często podrużuje.
+
+Wykres dotyczacy zadowolenia ze środowika pracy wskazuje, że znacząco wyższy odsetek odejść ma grupa pracowników, któa oceniła to środowisko pracy najniżej (tj. 1)
+
+Z wykresu dotyczącego płci wynika, że mężczyźni nieznacznie częściej odchodzą z pracy.
+
+Odsetek odejśc dla zmiennej oznaczającej zaangażowanie w pracę  maleje wraz ze wzrostem oceny zaangażowania.
+
+W grupie osób najgorzej oceniających równowagę między życiem a pracą odestek odejść jest największy w pozostałych grupach odsetek przyjmuje podobną wartość.
+
+Ze zmiennej dotyczącej stanu cywilnego możemy się dowiedzieć, że największy odsetek odejść mają osoby samotne (single) . Znacznie niższy jest odsetek odejść dla ludzi w związkach małżeńskich lub rozwodników.
+
+W przypadku zmiennej OverTime zdecydowanie wyższy odsetek odejść grupa pracowników, którzy biorą nadgodziny.
+
+Z wkresu dla zmiennej Relationshipsatisfaction można wywnioskować, że osoby, które najniżej oceniają swoje zadowolenie ze związku mają najniższy odsetek odejść, dla reszty poziomów zadowolenia ze związku odestek przyjmuje zbliżone wartości.
+
+Z wykresu dotyczącego roli w orgaznizacji możemy wywnioskować, że najwyższy odsetek odejść ma rola przedstawiciela handlowego ( Sales Representative) a najniższy 
+Research Director.
+
+
+
+##2.3 Badanie korelacji
+<center> <h1>Macierz korelacji zmiennych między sobą</h1> </center>
+```{R echo=TRUE, out.width = '\\maxwidth', out.height = '1000px', message = FALSE}
+library(corrplot)
+numeric.var <- sapply(d, is.numeric)
+corr.matrix <- cor(d[,numeric.var])
+corr.matrix[is.na(corr.matrix)]<-0
+corrplot(corr.matrix, type = "upper", order = "FPC", sig.level = .01, insig = "p-value", method = "color", tl.cex = 0.5)
+
+```
+
+Wykres wizualizuje wartość współczynnika korelacji między zmiennymi któe są w formacie numerycznym. Kwadraty oznaczają korelację, jest ciemniejszy ( granatowy dodatnia korelaccja i czerwony jeżeli ujemna ) tym korelacja między zmeinnymi jest silniejsza. W tym przypadku widać silną korelacjię między: 
+
+- zmienną YearsAtCompany a zmiennymi YearsInCurrentRole i YearsWithCurrManager
+
+- zmienną YearsInCUrrentROle a zmienną YearsWithCurManager
+
+Dla zmiennych między, którymi występuje silniejsza korelacja wykonałem wykresy rozrzutu względem siebie. Dodatkowo kolor kropek oznacza, czy osoba odeszła czy nie.
+Na wykres zostały naniesione dwie linie, które obrazują wygładzony rozkład dwóch wartości zmiennej Attrition w zależności od wartości skorelowanych zmiennych.
+
+
+<center> <h1>Wykresy zależności między zmiennymi w zależności od wartości zmiennej Attrition </h1> </center>
+```{R echo=TRUE, message= FALSE,out.width = '\\maxwidth'}
+# rozrzut i krzywa zależności zmiennej 
+g1 = ggplot(data=d,aes(x= YearsInCurrentRole, y= YearsAtCompany))+ 
+  geom_point(aes(col = Attrition),alpha = 0.2)+
+  geom_smooth(aes(col=Attrition))
+
+g2 = ggplot(data=d,aes(x= YearsWithCurrManager, y= YearsAtCompany))+ 
+  geom_point(aes(col = Attrition),alpha = 0.2)+
+  geom_smooth(aes(col=Attrition))
+
+g3 = ggplot(data=d,aes(x= YearsWithCurrManager, y= YearsInCurrentRole))+ 
+  geom_point(aes(col = Attrition),alpha = 0.2)+
+  geom_smooth( aes(col= Attrition) )
+
+g1
+g2
+g3
+
+```
+
+Z pierwszego wykresu możemy dowiedzieć się, że ilość lat przepracowanych w firmie łączy się z ilością lat przepracowanych na danym stanowisku ( zależność dodatnia, im więcej lat w firmie tym więcej lat na danym stanowisku). Wynika też z niego, że osoby, które są bardziej skłonne odejść, pracują dłużej w firmie na danym stanowisku niż osoby, które nie odchodzą.
+
+Drugi wykres okazuje, że im dłużej osoba pracuje dla firmy oraz dla tego samego managera tym bardziej jest skłonna odesjść ( niebieska linia ponad pomarańczową do około 13 lat pracy dla managera i 20 lat pracy dla firmy).
+
+Trzeci wykres pokazuje, że im dłuższa praca dla jednego managera łączy się z dłuższą pracą na danej posadzie. Ta cecha szczególnie zauważalna jest dla pracowników nie odchodzących ( pomarańczowa linia ponad niebieską aż do około 12 lat z obecnym mnagerem).
+
+
+
+#3. Budowa, analiza i weryfikacja modeli 
+
+Zbiór zozstał podzielony na zbiór treningowy i testowy w stosunku 0.75  (treningowy ), 0.25 (testowy).
+
+
+##3.1 Model logitowy
+Na podstawie wszystkich zmiennych, na zbiorze treningowym został przygotowany model logitowy. 
+
+###3.1.1 Budowa modelu
+```{R echo=TRUE, out.width = '\\maxwidth', message = FALSE} 
+set.seed(3221)
+d$Attrition<- ifelse(d$Attrition== "Yes", 1, 0)
+r <- nrow(d)
+samp <- sample.int(r, r*0.75, replace = FALSE)
+train<- d[samp,]
+test <- d[-samp,]
+model_line <- glm(Attrition ~., family = binomial(link="logit") , data = train)
+summary(model_line)
+
+```
+
+###3.1.2 Analiza modleu logitowego
+Pierwotny zbiór został ograniczony do zmiennych, które mogły mieć wpły na analizę. Jak widać raktycznie wszystkie zmienne są istotna statystycznie na poziomie 5%. Do zmiennych, które okazały się nie istotne na poziomie 5% należą takie zmienne jak: 
+
+-JobRoleManager                     
+-JobRoleManufacturing Director  
+-JobRoleResearch Director 
+-JobRoleResearch Scientist   
+-JobRoleSales Executive  
+
+Patrząc na oszacowane współczynniki można powiedzieć, że największy wpływ odejścia pracowników mają zmienne: BusinessTravelTravel_Frequently, JobRoleSales Representative i OverTimeYes. Współczynniki dla tych zmiennych mają najwyższe wartości z dodatnim znakiem a więc wraz z wzrostem ich wartosci rośnie prawdopodobieństwo, że osoba odejdzie. 
+
+Z drugiej strony mamy zmienne z wysokimi i ujemnymi współczynnikami, do których należą zmienne JobInvolvement, JobRoleResearch Director i WorkLifeBalance. Oznacza to, że wraz z wzrostem ich wartości albo w przypadku zmienncyh binarnych przyjęcia wartości 1, prawdopodobieństwo, tego, że pracownik odejdzie maleje.
+
+###3.1.3 Implementacja zbudowanego modelu na zbiór testowy i weryfkacja modelu
+(długi kod w pliku Rmd)
+```{R echo = FALSE, out.width = '\\maxwidth', message = FALSE}
+library(caret)
+library(lattice)
+library(pROC)
+
+predict2 <-predict(model_line, newdata = test, type ='response')
+
+cutoffs <- seq(0.1,0.9,0.05)
+roc_pred <- NULL
+for (i in seq(along = cutoffs)){
+  predict_ion <- ifelse(predict2 >= cutoffs[i], 1, 0) #Predicting for cut-off
+  roc_pred <- c(roc_pred, auc(roc( test$Attrition, predict_ion)))
+}
+
+accuracy <- NULL
+for (i in seq(along = cutoffs)){
+   prediction <- ifelse(predict2 >= cutoffs[i], 1, 0) #Predicting for cut-off
+   accuracy <- c(accuracy,length(which(test$Attrition ==prediction))/length(prediction)) }
+par(mfrow=c(1,2))
+#log1<-
+plot(cutoffs, roc_pred, pch =19,type='b',col= "steelblue",
+     main ="AUC (pole pod krzywą ROC)", xlab="Cutoff", ylab = "AUC")
+#log2<-
+plot(cutoffs,accuracy, type = 'b',col = "Red", main ="Accuracy (dokładnosć)", xlab="Cutoff", ylab = "Accuracy %")
+#grid.arrange(log1,log2, ncol =2, nrow = 1)
+
+
+```
+
+Pierwszy wykres opisuje zmianę wartości AUC przy zmianie punktu odcięcia (wartość graniczna, poniżej której wartości będą przyjmowały wartość 0, powyżej niej 1) a drugi jak zmienia się dokładność modelu w zależności od przyjętego punktu odcięcia.
+
+Widać, że najwyższe AUC (ponad 0.75) otrzymamy przyjmując cutoff (punkt odcięcia) na poziomie 0.15 ale dla tego samego punktu odcięcia poziom accurancy jest równy 0.75, co jest dosyć niskim wynikiem, wiedzą, że maksumalne accuracy jest na poziomie około 0.9.
+W tym przypadku trzeba wybrać kompromis między polem pod kryzwą ROC a dokładnością modelu.
+Wybrałem punkt odcięcia równy 0.25, który daje accuracy ~0.825 oraz AUC, ltóre jest lekko poniżej 0.75.
+
+Dla wartości poniżej 0.25 uznaje, że zmienna będzie przyjmować 0 a dla wartości większych niż 0.25 zmienna przyjmuje wartości równe 1.
+ZOstała sporządzona macierz błędu (confusion matrix). 
+
+
+```{R echo = TRUE, out.width = '\\maxwidth', message = FALSE}
+library(caret)
+library(lattice)
+library(pROC)
+predict.model <- predict2
+predict.model[predict.model >= 0.25]<- 1
+predict.model[predict.model < 0.25]<- 0
+cf1<- confusionMatrix(factor(predict.model), factor(test$Attrition))
+
+fourfoldplot(cf1$table, main = "Tabela błędów dla modelu liniowego")
+```
+
+Na wykresie z macierzą błędów (confusion matrix) widzimy, że 270 obserwacji ocenionych jako 0 i 36 obserwacji oceninych jako 1 zostało dopasowane poprawnie, zgodnie z rzeczywistoscią. Błąd pierwszego rodzaju ( predykcja pozytywna przy negatywnej wartości w rzeczywistości) wykazało 39 obserwacji a błąd drugiego rodzaju ( pedykcja negatywna przy pozytywnej wartości rzecczywistości) wykazało 23 obserwacji.
+
+```{R echo=TRUE, out.width = '\\maxwidth', message = FALSE}
+library(pROC)
+roc.model <- roc( test$Attrition, predict.model)
+plot.roc(roc.model, col = "blue", print.auc=TRUE,main = c("Krzywa ROC i pole pod jej powierzchnią (AUC)" , " dla modelu logitowego"))
+auc(roc.model)
+```
+
+
+Pole pod krzywą ROC jest na poziomie 0.742, co oznacza, że model jest dosyć dobrze dopasowany do danych.
+
+Accuracy dla modelu logitowego wynosi
+```{R echo = TRUE, out.width = '\\maxwidth', message = FALSE}
+length(which(test$Attrition ==predict.model))/length(predict.model)
+```
+
+##3.2 Drzewo decyzyjne
+
+###3.2.1 Budowa modelu drzewa decyzyjnego
+Podobnie jak w przypadku modelu logitowego model budowany jest na zbiorze treningowym
+```{R echo=TRUE, out.width = '\\maxwidth', message = FALSE}
+#install.packages("rpart.plot")
+library(rpart.plot)
+library(rattle)
+tree <- rpart(Attrition ~., data = train)#, cp=0.015)
+printcp(tree)
+```
+
+Minimalna wartość xerror w przypadku tego drzewa to:
+```{R echo = TRUE, out.width = '\\maxwidth', message = FALSE}
+library(rattle)
+min.err <- tree$cptable[which.min(tree$cptable[,"xerror"]), "CP"]
+min.err
+tree1 <- prune(tree, cp= min.err )
+fancyRpartPlot(tree1,branch.lwd = 2, main = "Drzewo decyzyjne po przycięciu", caption ="")
+```
+
+###3.2.2 Analiza drzewa decyzyjnego
+
+Drzewo zostało przycięte do cp, które odpowiadało najmniejszej wartości xerror i otrzymaliśmy po przycięciu drzewo "tree1".
+W korzeniu skupiona jest cała próba, w tym przypadku zbiór treningowy. 
+
+W pierwszym węźle następuje podział obserwacji na te, które wskazóją wartość "yes" zmiennej OverTime i te, które wskazują wartość 'nie'.804 osoby według modelu biorą nadgodziny.
+
+W węźle nr 2 następuje podział obserwacji z wartością OverTime "yes", na te, których watość TotalWorkingYears jest większa bądź równa 1.5 (759 obserwacji) i na te, których ilość przepracowanych lat jest mniejsza od 1.5 (45 obserwacji).
+
+
+W węźle nr 3 następuje podział obserwacji z wartością OverTime "no" (289 obserwacji), na te, których watość TotalWorkingYears jest większa bądź równa 8.5 (161 obserwacji) i na te, których ta wartość jest mniejsza od 8.5 (137 obserwacji).
+
+W węźle nr 5 następuje podział osób,które biorą nadgodziny i pracują mnej niż 1.5 roku na osoby, które cechują się rolą w pracy/organizacji : Laboratory Technican, Research Scientist(29 obserwaacji) i na te osoby, które mają inną rolę w pracy (16 obserwacji).
+
+Węzeł nr 7 obejmuje osoby, które nie biorą nadgodzin a  ogólna liczba przepracownych lat nie przekracza 8.5. Następuje podział na osoby, które spędziły z obecnym managerem pół lub więcej lat (YearsWithCUrrManger >= 0.5) (102 obserwacjie) i na te osoby, które spędziły z obecnym managerem mniej niż pół roku (YearsWithCUrrManger < 0.5) (35 obserwacji).
+
+W węźle 14 następuje podział na osoby, które w orgnizacji mają role :Heathcare Representative, Human Resources, Manufacturing Director, Research Scientist i Sales Executive.
+
+Na samym dole są widoczne liście. Wynika z nich, że najliczniejszą grupą, zrzeszającą 69% wszystkich obserwacji to osoby, które bierą nadgodziny a ogólna ilość lat przez nich przepracowanych jest większa bądź równa 1.5 roku.Ta grupa to także grupa, która przyjmuje najniższą wartość zmiennej Attrition ( bardzo przeważa grupa osób nie odchodzących w stosunku do odchodzących). Dużą grupą stanowią także osoby, które nie biorą nadgodzin a ilość przepracowanych przez nich lat jest większa bądź równa 8.5. W tym przypadku również przeważa grupa osób nie odchodzących w stosunku do odchodzących, jednak mniej niż w poprzednim przypadku.
+Dla najmniej liczbych grup drzewo modeluje najwyższy stosunek osób odchodzących do nieodchodzących.
+
+###3.2.3 Implementacja na zbiór testowy i weryfikacja
+Następnie tak przycięte drzewo zostało zaimplementowane na zbiór testowy. Dla drzewa użyję tego samego punktu odcięcia co dla modelu logitowego (0.25).
+```{R echo =TRUE, out.width = '\\maxwidth', message = FALSE}
+tree_pred <- predict(tree1, test, type = "vector")
+predict.tree <- tree_pred
+predict.tree[predict.tree >= 0.25]<- 1
+predict.tree[predict.tree < 0.25]<- 0
+cf<- confusionMatrix(factor(predict.tree), factor(test$Attrition))
+fourfoldplot(cf$table, main = "Tabela błędów dla drzewa decyzyjnego")
+```
+
+Używając przyciętego drzewa decyzyjnego uzyskaliśmy macierz błędów. 278 obserwacji zostało poprawnie zakwalifikowanych z wartością 0 i 19 obserwacje zostały poprawnie zakwalifikowane, przyjmując wartość 1.
+
+40 obserwacji zostało zakwalifikowanych jako 0, w rzeczywistości przyjmując wartość 1. 
+31 obserwacji zostało zakwalifikowanych jako 1 w rzeczywistości przyjmując wartość 0.
+
+```{R echo = TRUE, out.width = '\\maxwidth', message = FALSE}
+library(pROC)
+roc.tree<- roc(as.numeric(test$Attrition), as.numeric(predict.tree))
+plot.roc(roc.tree, col = "blue", print.auc=TRUE, main = c("Krzywa ROC i pole pod jej powierzchnią (AUC)" , " dla przyciętego drewa decyzyjnego"))
+```
+
+Wartość AUC dla modelu jest niższa niż wartość AUC dla modleu logitowego. Wartośc AUC (0.611) w tym przypadku pokazuje, że drzewo decyzyjne jest gorszym narzędziem do modelowania wybranego zbioru danych o odejściach z pracy w firmie IBM.
+
+Accuracy dla podciętego drzewa decyzyjnego wynosi:
+```{R echo = TRUE}
+length(which(test$Attrition ==predict.tree))/length(predict.tree)
+```
+
+
+
+#4. Porównanie modelu logitowego i drzewa decyzyjnego oraz wnioski
+
+Porównując oba modele należy zwrócić uwagę na pole pod krzywą ROC (AUC). W przypadku modelu logitowego wartość ta była równa 0.742, w przypadku drzewa decyzyjnego AUC wynosi tylko 0.611, czyli jest niższe od AUC modelu logitowego o prawie 0.1. Dla porównania obu modeli można też sprawdzić poziom ich dokładnosci (accuracy). Podbnie jak dla AUC Accuracy jest wyższe dla modelu logitowego i wynosi około 0,82, dla drzewa decyzyjnego ta wartośc jest równa około 0.81. Biorąc pod uwagę oba parametry modelu można stwirdzić, że model logitowy jest lepszym modelem (lepiej dopasowanym). 
+
+
+Wybierając lepiej dopasowany model, model logitowy, możemy dojść do wniosku, że część zmiennych jest istotna statystycznie i wpływa na wartość zmiennej Attrition. Do zmiennych istotnych na poziomie 5% należą praktycznie wszytkie zmienne użyte do budowy modelu. Ponadto podel cechuje się dosyć wysokim polem pod krzywą ROC (około 0.75) co świadczy o jego dobrym dopasowaniu do rzeczywistych zmiennych
+
+
+
